@@ -7,8 +7,6 @@ import 'package:gemini_bot_flutter/components/code_wrapper.dart';
 
 void main() {
   Gemini.init(
-    /// flutter run --dart-define=apiKey='Your Api Key'
-
     apiKey: const String.fromEnvironment('apiKey'),
     enableDebugging: true,
   );
@@ -23,7 +21,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Flutter Gemini',
       debugShowCheckedModeBanner: false,
-      themeMode: ThemeMode.dark,
+      // themeMode: ThemeMode.dark,
       darkTheme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
@@ -48,20 +46,15 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   final _controller = TextEditingController();
   final gemini = Gemini.instance;
-  // @override
-  // void initState() {
-  //   super.initState();
-
-  // }
 
   var _result = '';
   bool _geminiAsk = true;
 
   /// This function is called when the user submits a question
-  Future<void>? _onSubmitQuestion(String value) async {
+  Future<void>? _onSubmitQuestion(String val) async {
     gemini
         .text(
-      _controller.text,
+      val,
       generationConfig: GenerationConfig(
         temperature: 0.5,
         // maxOutputTokens: 512,
@@ -102,6 +95,7 @@ class _MyHomePageState extends State<MyHomePage> {
         isDark ? MarkdownConfig.darkConfig : MarkdownConfig.defaultConfig;
     final codeWrapper =
         (child, text, language) => CodeWrapperWidget(child, text, language);
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
