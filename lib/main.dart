@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_gemini/flutter_gemini.dart';
 import 'package:markdown_widget/markdown_widget.dart';
 import 'package:gemini_bot_flutter/components/code_wrapper.dart';
+import 'package:image_picker/image_picker.dart';
 
 void main() {
   Gemini.init(
@@ -21,7 +24,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Flutter Gemini',
       debugShowCheckedModeBanner: false,
-      // themeMode: ThemeMode.dark,
+      themeMode: ThemeMode.dark,
       darkTheme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
@@ -49,25 +52,48 @@ class _MyHomePageState extends State<MyHomePage> {
 
   var _result = '';
   bool _geminiAsk = true;
+  final ImagePicker picker = ImagePicker();
+  var listOfImgs = [];
 
   /// This function is called when the user submits a question
-  Future<void>? _onSubmitQuestion(String val) async {
-    gemini
-        .text(
-      val,
-      generationConfig: GenerationConfig(
-        temperature: 0.5,
-        // maxOutputTokens: 512,
-      ),
-    )
-        .then((value) {
-      setState(() {
-        _result += value?.output ?? 'No result found';
-        print("Output: $value");
-      });
-    }).onError((e) {
-      print('text generation exception: ${e!}');
-    } as FutureOr<Null> Function(Object error, StackTrace stackTrace));
+  Future<void>? _onSubmitQuestion(String val, bool withImg, images) async {
+    if (withImg) {
+      gemini
+          .textAndImage(
+        text: val,
+        images: images,
+        generationConfig: GenerationConfig(
+          temperature: 0.5,
+          // maxOutputTokens: 512,
+        ),
+      )
+          .then((value) {
+        setState(() {
+          _result += value?.output ?? 'No result found';
+          print("Output: $value");
+        });
+      }).onError((e) {
+        print('text generation exception: ${e!}');
+      } as FutureOr<Null> Function(Object error, StackTrace stackTrace));
+    } else {
+      gemini
+          .text(
+        val,
+        generationConfig: GenerationConfig(
+          temperature: 0.5,
+          // maxOutputTokens: 512,
+        ),
+      )
+          .then((value) {
+        setState(() {
+          _result += value?.output ?? 'No result found';
+          print("Output: $value");
+        });
+      }).onError((e) {
+        print('text generation exception: ${e!}');
+      } as FutureOr<Null> Function(Object error, StackTrace stackTrace));
+    }
+
     // Stream Generate Content
     // gemini
     //     .streamGenerateContent(
@@ -108,25 +134,95 @@ class _MyHomePageState extends State<MyHomePage> {
           height: MediaQuery.of(context).size.height,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
-            // crossAxisAlignment: CrossAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.all(15.0),
-                child: TextField(
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    labelText: 'Enter the question for Gemini:',
-                  ),
-                  controller: _controller,
-                  onSubmitted: (value) {
-                    _onSubmitQuestion(value);
-                    setState(() {
-                      _geminiAsk = !_geminiAsk; //it should be false
-                    });
-                  },
-                  enabled: _geminiAsk,
+              TextField(
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  labelText: 'Enter the question for Gemini:',
+                ),
+                controller: _controller,
+                // onSubmitted: (value) {
+                //   _onSubmitQuestion(value);
+                //   setState(() {
+                //     _geminiAsk = !_geminiAsk; //it should be false
+                //   });
+                // },
+                enabled: _geminiAsk,
+              ),
+              Container(
+                margin: const EdgeInsets.all(10),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    // camera icon button
+                    IconButton(
+                      onPressed: () async {
+                        final images =
+                            await picker.pickImage(source: ImageSource.camera);
+                        if (images != null) {
+                          File(images.path).readAsBytes().then(
+                                (value) => setState(() {
+                                  listOfImgs.add(value);
+                                }),
+                              );
+                        }
+                      },
+                      icon: const Icon(
+                        Icons.camera_alt,
+                        size: 30,
+                      ),
+                    ),
+                    // gallery icon button
+                    IconButton(
+                      onPressed: () async {
+                        final images =
+                            await picker.pickImage(source: ImageSource.gallery);
+                        if (images != null) {
+                          File(images.path).readAsBytes().then(
+                                (value) => setState(() {
+                                  listOfImgs.add(value);
+                                }),
+                              );
+                        }
+                      },
+                      icon: const Icon(
+                        Icons.photo,
+                        size: 30,
+                      ),
+                    ),
+                  ],
                 ),
               ),
+              // show the images that have been selected
+              (listOfImgs.isNotEmpty)
+                  ? Container(
+                      height: MediaQuery.of(context).size.height * 0.1,
+                      // create borders for the container
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: Theme.of(context).colorScheme.inversePrimary,
+                          width: 2,
+                        ),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      // show the images in a horizontal list
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: listOfImgs.length,
+                        itemBuilder: (context, index) {
+                          return Container(
+                            margin: const EdgeInsets.all(10),
+                            child: Image.memory(
+                              listOfImgs[index],
+                              width: 100,
+                              height: 100,
+                            ),
+                          );
+                        },
+                      ),
+                    )
+                  : const SizedBox(),
               SizedBox(height: MediaQuery.of(context).size.height * 0.01),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -140,8 +236,10 @@ class _MyHomePageState extends State<MyHomePage> {
                           // this means that you want to ask the question
                           _result = '';
                           _controller.clear();
+                          listOfImgs.clear();
                         } else {
-                          _onSubmitQuestion(_controller.text);
+                          _onSubmitQuestion(_controller.text,
+                              listOfImgs.isNotEmpty, listOfImgs);
                         }
                       });
                     },
@@ -153,6 +251,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         _result = '';
                         _geminiAsk = true;
                         _controller.clear();
+                        listOfImgs.clear();
                       });
                     },
                     child: const Text('Clear Result'),
